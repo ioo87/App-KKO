@@ -5,8 +5,15 @@ function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   window.scrollTo(0, 0);
-  if (id === 'screen-menu') renderHistory();
+  if (id === 'screen-menu') {
+    renderHistory();
+    renderMenuIntro();
+  }
 }
+
+document.getElementById('landingStartBtn').addEventListener('click', () => {
+  showScreen('screen-login');
+});
 
 /* =========================================================
    TOAST NOTIFICATIONS — replaces the browser's alert().
@@ -97,7 +104,90 @@ function addHistoryEntry(type, name) {
     // Storage full or unavailable (e.g. private browsing) — history just
     // won't persist this session, nothing else is affected.
   }
+  incrementUsageCount();
 }
+
+/* =========================================================
+   USAGE COUNTER — kept separate from history (which only
+   keeps the last 10) so the total can keep counting past that.
+========================================================= */
+const USAGE_COUNT_KEY = 'kko-usage-count';
+
+function incrementUsageCount() {
+  const count = getUsageCount() + 1;
+  try { localStorage.setItem(USAGE_COUNT_KEY, String(count)); } catch (e) {}
+  return count;
+}
+
+function getUsageCount() {
+  try { return parseInt(localStorage.getItem(USAGE_COUNT_KEY), 10) || 0; } catch (e) { return 0; }
+}
+
+/* =========================================================
+   MENU GREETING + USAGE STAT
+========================================================= */
+function getGreeting() {
+  const hour = new Date().getHours();
+  if (hour < 5) return 'สวัสดีตอนดึก 🌙';
+  if (hour < 12) return 'สวัสดีตอนเช้า ☀️';
+  if (hour < 17) return 'สวัสดีตอนบ่าย 👋';
+  if (hour < 21) return 'สวัสดีตอนเย็น 🌆';
+  return 'สวัสดีตอนดึก 🌙';
+}
+
+function renderMenuIntro() {
+  document.getElementById('greetingText').textContent = getGreeting();
+  const count = getUsageCount();
+  document.getElementById('usageStat').textContent =
+    count === 0 ? 'เริ่มใช้งานเครื่องมือแรกได้เลย' : `ใช้งานไปแล้ว ${count} ครั้ง 🎉`;
+}
+
+/* =========================================================
+   CONFETTI — a small celebration on every successful conversion
+========================================================= */
+function fireConfetti() {
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+  const layer = document.getElementById('confettiLayer');
+  const colors = ['#00e6a0', '#7cf2cf', '#e8b84b', '#ffffff'];
+  for (let i = 0; i < 24; i++) {
+    const piece = document.createElement('div');
+    piece.className = 'confetti-piece';
+    piece.style.left = Math.random() * 100 + 'vw';
+    piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+    piece.style.animationDuration = (1.6 + Math.random() * 1.2) + 's';
+    piece.style.animationDelay = (Math.random() * 0.25) + 's';
+    piece.addEventListener('animationend', () => piece.remove());
+    layer.appendChild(piece);
+  }
+}
+
+/* =========================================================
+   SHARE APP (menu screen)
+========================================================= */
+document.getElementById('shareAppBtn').addEventListener('click', async () => {
+  const shareUrl = window.location.href;
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: 'KKO.com — เครื่องมือแปลงไฟล์ฟรี',
+        text: 'แปลงไฟล์ฟรี ไม่มีอัปโหลด ลองเลยที่ KKO.com',
+        url: shareUrl
+      });
+    } catch (err) {
+      console.log('ยกเลิกการแชร์');
+    }
+  } else if (navigator.clipboard) {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      showToast('คัดลอกลิงก์แล้ว! เอาไปแชร์ได้เลย');
+    } catch (err) {
+      showToast('คัดลอกลิงก์ไม่สำเร็จ ลองคัดลอกจากแถบที่อยู่แทนนะ', 'error');
+    }
+  } else {
+    showToast('เบราว์เซอร์นี้แชร์ลิงก์อัตโนมัติไม่ได้ ลองคัดลอกจากแถบที่อยู่แทนนะ');
+  }
+});
 
 function relativeTime(timestamp) {
   const diffMin = Math.round((Date.now() - timestamp) / 60000);
@@ -127,7 +217,8 @@ function renderHistory() {
 
     const icon = document.createElement('span');
     icon.className = 'history-icon';
-    icon.textContent = entry.type === 'pdf' ? '📄' : '🎵';
+    const iconMap = { pdf: '📄', qr: '🔳', compress: '🗜️', format: '🔄', merge: '📎', watermark: '🖼️' };
+    icon.textContent = iconMap[entry.type] || '🎵';
 
     const name = document.createElement('span');
     name.className = 'history-name';
@@ -225,9 +316,30 @@ trackPdf.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openWorkspace('pdf'); }
 });
 
+// Track 03–07 all follow the same click/keydown pattern as tracks 01–02, so
+// this loop wires them up without repeating the same four lines five times.
+[
+  ['trackQr', 'qr'],
+  ['trackCompress', 'compress'],
+  ['trackFormat', 'format'],
+  ['trackMerge', 'merge'],
+  ['trackWatermark', 'watermark'],
+].forEach(([id, tab]) => {
+  const el = document.getElementById(id);
+  el.addEventListener('click', () => openWorkspace(tab));
+  el.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openWorkspace(tab); }
+  });
+});
+
 document.getElementById('backToMenuBtn').addEventListener('click', () => {
   resetApp();
   resetPdfApp();
+  resetQrApp();
+  resetCompressApp();
+  resetFormatApp();
+  resetMergeApp();
+  resetWatermarkApp();
   showScreen('screen-menu');
 });
 
@@ -457,6 +569,7 @@ convertBtn.addEventListener('click', async function () {
     setProgress(mp3ProgressFill, mp3ProgressText, mp3LoadingLabel, 100, 'เสร็จสิ้น');
 
     addHistoryEntry('mp3', (file.name || 'song').replace(/\.[^./]+$/, ''));
+    fireConfetti();
 
     setTimeout(() => {
       loadingSection.style.display = 'none';
@@ -579,7 +692,7 @@ function handleImgFiles(fileList) {
       showToast(`เลือกได้สูงสุด ${MAX_IMAGES} รูปต่อ PDF หนึ่งไฟล์`, 'error');
       break;
     }
-    selectedImages.push({ file, thumbUrl: URL.createObjectURL(file) });
+    selectedImages.push({ file, thumbUrl: URL.createObjectURL(file), rotation: 0 });
   }
   renderThumbs();
 }
@@ -601,7 +714,16 @@ function renderThumbs() {
     const img = document.createElement('img');
     img.src = item.thumbUrl;
     img.alt = '';
+    img.style.transform = `rotate(${item.rotation || 0}deg)`;
     cell.appendChild(img);
+
+    const rotateBtn = document.createElement('button');
+    rotateBtn.type = 'button';
+    rotateBtn.className = 'thumb-rotate';
+    rotateBtn.setAttribute('aria-label', 'หมุนรูปนี้ 90 องศา');
+    rotateBtn.textContent = '↻';
+    rotateBtn.addEventListener('click', () => rotateImage(index));
+    cell.appendChild(rotateBtn);
 
     const removeBtn = document.createElement('button');
     removeBtn.type = 'button';
@@ -616,26 +738,37 @@ function renderThumbs() {
   imgCountEl.textContent = String(selectedImages.length);
 }
 
+function rotateImage(index) {
+  const item = selectedImages[index];
+  item.rotation = ((item.rotation || 0) + 90) % 360;
+  renderThumbs();
+}
+
 function removeImage(index) {
   URL.revokeObjectURL(selectedImages[index].thumbUrl);
   selectedImages.splice(index, 1);
   renderThumbs();
 }
 
-function loadImageAsCanvasData(file) {
+function loadImageAsCanvasData(file, rotationDeg = 0) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
     img.onload = () => {
+      const swap = rotationDeg === 90 || rotationDeg === 270;
       const canvas = document.createElement('canvas');
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
+      canvas.width = swap ? img.naturalHeight : img.naturalWidth;
+      canvas.height = swap ? img.naturalWidth : img.naturalHeight;
       const ctx = canvas.getContext('2d');
       // Flatten onto a white background first — a transparent PNG would
       // otherwise print as solid black on the PDF page.
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 0, 0);
+      ctx.save();
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.rotate((rotationDeg * Math.PI) / 180);
+      ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
+      ctx.restore();
       const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
       URL.revokeObjectURL(url);
       resolve({ dataUrl, width: canvas.width, height: canvas.height });
@@ -675,7 +808,7 @@ convertPdfBtn.addEventListener('click', async function () {
     const total = selectedImages.length;
 
     for (let i = 0; i < total; i++) {
-      const { dataUrl, width, height } = await loadImageAsCanvasData(selectedImages[i].file);
+      const { dataUrl, width, height } = await loadImageAsCanvasData(selectedImages[i].file, selectedImages[i].rotation || 0);
 
       // "Contain" fit: scale to the largest size that fits the page without
       // distorting the aspect ratio, then center it.
@@ -706,6 +839,7 @@ convertPdfBtn.addEventListener('click', async function () {
     pdfBlobUrl = URL.createObjectURL(pdfBlobResult);
 
     addHistoryEntry('pdf', document.getElementById('pdftitle').value || `เอกสาร ${total} หน้า`);
+    fireConfetti();
 
     pdfLoadingSection.style.display = 'none';
     pdfResultSection.style.display = 'block';
@@ -785,4 +919,649 @@ function resetPdfApp() {
     pdfBlobUrl = "";
   }
   setProgress(pdfProgressFill, pdfProgressText, pdfLoadingLabel, 0, 'กำลังสร้าง PDF...');
+}
+
+/* =========================================================
+   QR CODE GENERATOR
+   Uses qrcodejs (loaded from cdnjs) — draws a canvas we can
+   read back directly for download/share.
+========================================================= */
+const qrtext = document.getElementById('qrtext');
+const generateQrBtn = document.getElementById('generateQrBtn');
+const qrResultWrap = document.getElementById('qrResultWrap');
+const qrCanvasHolder = document.getElementById('qrCanvasHolder');
+const downloadQrBtn = document.getElementById('downloadQrBtn');
+const shareQrBtn = document.getElementById('shareQrBtn');
+
+generateQrBtn.addEventListener('click', () => {
+  const text = qrtext.value.trim();
+  if (text === '') {
+    showToast("เพื่อน! พิมพ์ข้อความหรือลิงก์ก่อนนะ", 'error');
+    return;
+  }
+  if (typeof QRCode === 'undefined') {
+    showToast("โหลดตัวสร้าง QR ไม่สำเร็จ ตรวจสอบการเชื่อมต่อเน็ตแล้วลองใหม่นะ", 'error');
+    return;
+  }
+
+  qrCanvasHolder.innerHTML = ''; // clear any previously generated code (safe: empty string)
+  new QRCode(qrCanvasHolder, {
+    text: text,
+    width: 240,
+    height: 240,
+    colorDark: '#000000',
+    colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.H
+  });
+
+  qrResultWrap.style.display = 'block';
+  addHistoryEntry('qr', text.length > 30 ? text.slice(0, 30) + '…' : text);
+  fireConfetti();
+});
+
+downloadQrBtn.addEventListener('click', () => {
+  const canvas = qrCanvasHolder.querySelector('canvas');
+  if (!canvas) {
+    showToast('ยังไม่มี QR Code ให้ดาวน์โหลด', 'error');
+    return;
+  }
+  const a = document.createElement('a');
+  a.href = canvas.toDataURL('image/png');
+  a.download = 'qrcode.png';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+});
+
+shareQrBtn.addEventListener('click', () => {
+  const canvas = qrCanvasHolder.querySelector('canvas');
+  if (!canvas) return;
+  canvas.toBlob(async (blob) => {
+    if (!blob) return;
+    const file = new File([blob], 'qrcode.png', { type: 'image/png' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: 'QR Code' }); }
+      catch (err) { console.log('ยกเลิกการแชร์'); }
+    } else {
+      showToast('เบราว์เซอร์ของคุณไม่รองรับการแชร์ ลองดาวน์โหลดแทนนะ');
+    }
+  }, 'image/png');
+});
+
+function resetQrApp() {
+  qrtext.value = '';
+  qrCanvasHolder.innerHTML = '';
+  qrResultWrap.style.display = 'none';
+}
+
+/* =========================================================
+   SHARED: human-readable file sizes (compress + merge use this)
+========================================================= */
+function formatBytes(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+}
+
+const MAX_SIMPLE_IMAGE_SIZE = 30 * 1024 * 1024; // 30MB — shared cap for
+                                                 // compress / format / watermark
+
+/* =========================================================
+   IMAGE COMPRESSOR
+========================================================= */
+const compressFile = document.getElementById('compressFile');
+const compressUploadLabel = document.getElementById('compressUploadLabel');
+const compressUploadSection = document.getElementById('compressUploadSection');
+const compressControls = document.getElementById('compressControls');
+const compressQuality = document.getElementById('compressQuality');
+const compressQualityValue = document.getElementById('compressQualityValue');
+const compressOriginalSize = document.getElementById('compressOriginalSize');
+const compressBtn = document.getElementById('compressBtn');
+const compressResultSection = document.getElementById('compressResultSection');
+const compressPreviewImg = document.getElementById('compressPreviewImg');
+const compressSizeResult = document.getElementById('compressSizeResult');
+const downloadCompressBtn = document.getElementById('downloadCompressBtn');
+const shareCompressBtn = document.getElementById('shareCompressBtn');
+
+let compressSourceFile = null;
+let compressBlobResult = null;
+let compressBlobUrl = '';
+
+function handleCompressFile(file) {
+  if (!file) return;
+  if (!file.type.startsWith('image/')) {
+    showToast("ไฟล์นี้ไม่ใช่รูปภาพนะเพื่อน ลองเลือกไฟล์ใหม่", 'error');
+    return;
+  }
+  if (file.size > MAX_SIMPLE_IMAGE_SIZE) {
+    showToast("ไฟล์ใหญ่เกินไป (จำกัดไม่เกิน 30MB)", 'error');
+    return;
+  }
+  compressSourceFile = file;
+  compressOriginalSize.textContent = formatBytes(file.size);
+  compressControls.style.display = 'block';
+}
+
+compressFile.addEventListener('change', (e) => handleCompressFile(e.target.files[0]));
+wireDropZone(compressUploadLabel, (files) => handleCompressFile(files && files[0]));
+
+compressQuality.addEventListener('input', () => {
+  compressQualityValue.textContent = compressQuality.value + '%';
+});
+
+compressBtn.addEventListener('click', () => {
+  if (!compressSourceFile) {
+    showToast("เพื่อน! อย่าลืมเลือกรูปก่อนนะ", 'error');
+    return;
+  }
+  const quality = Number(compressQuality.value) / 100;
+  const img = new Image();
+  const url = URL.createObjectURL(compressSourceFile);
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0);
+    URL.revokeObjectURL(url);
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        showToast('บีบอัดไม่สำเร็จ ลองใหม่อีกครั้งนะ', 'error');
+        return;
+      }
+      compressBlobResult = blob;
+      compressBlobUrl = URL.createObjectURL(blob);
+      compressUploadSection.style.display = 'none';
+      compressResultSection.style.display = 'block';
+      compressPreviewImg.src = compressBlobUrl;
+      compressSizeResult.textContent =
+        `ขนาดใหม่: ${formatBytes(blob.size)} (จาก ${formatBytes(compressSourceFile.size)})`;
+      addHistoryEntry('compress', compressSourceFile.name);
+      fireConfetti();
+    }, 'image/jpeg', quality);
+  };
+  img.onerror = () => {
+    URL.revokeObjectURL(url);
+    showToast('โหลดรูปไม่สำเร็จ ลองไฟล์อื่นดูนะ', 'error');
+  };
+  img.src = url;
+});
+
+downloadCompressBtn.addEventListener('click', () => {
+  if (!compressBlobResult) return;
+  const a = document.createElement('a');
+  a.href = compressBlobUrl;
+  const baseName = sanitizeFileName((compressSourceFile.name || 'image').replace(/\.[^./]+$/, ''));
+  a.download = (baseName || 'image') + '-compressed.jpg';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+});
+
+shareCompressBtn.addEventListener('click', async () => {
+  if (!compressBlobResult) return;
+  const file = new File([compressBlobResult], 'compressed.jpg', { type: 'image/jpeg' });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: 'รูปที่บีบอัดแล้ว' }); }
+    catch (err) { console.log('ยกเลิกการแชร์'); }
+  } else {
+    showToast('เบราว์เซอร์ของคุณไม่รองรับการแชร์ ลองดาวน์โหลดแทนนะ');
+  }
+});
+
+document.getElementById('reconvertCompressLink').addEventListener('click', resetCompressApp);
+
+function resetCompressApp() {
+  compressResultSection.style.display = 'none';
+  compressUploadSection.style.display = 'block';
+  compressControls.style.display = 'none';
+  compressFile.value = '';
+  compressSourceFile = null;
+  compressBlobResult = null;
+  if (compressBlobUrl) { URL.revokeObjectURL(compressBlobUrl); compressBlobUrl = ''; }
+  compressQuality.value = 80;
+  compressQualityValue.textContent = '80%';
+}
+
+/* =========================================================
+   IMAGE FORMAT CONVERTER (PNG / JPG / WebP)
+========================================================= */
+const formatFile = document.getElementById('formatFile');
+const formatUploadLabel = document.getElementById('formatUploadLabel');
+const formatUploadSection = document.getElementById('formatUploadSection');
+const formatChoiceRow = document.getElementById('formatChoiceRow');
+const formatBtn = document.getElementById('formatBtn');
+const formatResultSection = document.getElementById('formatResultSection');
+const formatPreviewImg = document.getElementById('formatPreviewImg');
+const downloadFormatBtn = document.getElementById('downloadFormatBtn');
+const shareFormatBtn = document.getElementById('shareFormatBtn');
+
+let formatSourceFile = null;
+let formatBlobResult = null;
+let formatBlobUrl = '';
+let formatTargetMime = 'image/jpeg';
+let formatTargetExt = 'jpg';
+
+function handleFormatFile(file) {
+  if (!file) return;
+  if (!file.type.startsWith('image/')) {
+    showToast("ไฟล์นี้ไม่ใช่รูปภาพนะเพื่อน ลองเลือกไฟล์ใหม่", 'error');
+    return;
+  }
+  if (file.size > MAX_SIMPLE_IMAGE_SIZE) {
+    showToast("ไฟล์ใหญ่เกินไป (จำกัดไม่เกิน 30MB)", 'error');
+    return;
+  }
+  formatSourceFile = file;
+}
+
+formatFile.addEventListener('change', (e) => handleFormatFile(e.target.files[0]));
+wireDropZone(formatUploadLabel, (files) => handleFormatFile(files && files[0]));
+
+formatChoiceRow.querySelectorAll('.format-choice').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    formatChoiceRow.querySelectorAll('.format-choice').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    formatTargetMime = btn.dataset.format;
+    formatTargetExt = btn.dataset.ext;
+  });
+});
+
+formatBtn.addEventListener('click', () => {
+  if (!formatSourceFile) {
+    showToast("เพื่อน! อย่าลืมเลือกรูปก่อนนะ", 'error');
+    return;
+  }
+  const img = new Image();
+  const url = URL.createObjectURL(formatSourceFile);
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext('2d');
+    // PNG keeps transparency; JPG/WebP-without-alpha don't, so flatten to
+    // white first when the target is JPEG (PNG target keeps transparency).
+    if (formatTargetMime === 'image/jpeg') {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    ctx.drawImage(img, 0, 0);
+    URL.revokeObjectURL(url);
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        showToast('แปลงฟอร์แมตไม่สำเร็จ เบราว์เซอร์นี้อาจไม่รองรับฟอร์แมตที่เลือก', 'error');
+        return;
+      }
+      formatBlobResult = blob;
+      formatBlobUrl = URL.createObjectURL(blob);
+      formatUploadSection.style.display = 'none';
+      formatResultSection.style.display = 'block';
+      formatPreviewImg.src = formatBlobUrl;
+      addHistoryEntry('format', (formatSourceFile.name || 'image') + ' → ' + formatTargetExt.toUpperCase());
+      fireConfetti();
+    }, formatTargetMime, 0.92);
+  };
+  img.onerror = () => {
+    URL.revokeObjectURL(url);
+    showToast('โหลดรูปไม่สำเร็จ ลองไฟล์อื่นดูนะ', 'error');
+  };
+  img.src = url;
+});
+
+downloadFormatBtn.addEventListener('click', () => {
+  if (!formatBlobResult) return;
+  const a = document.createElement('a');
+  a.href = formatBlobUrl;
+  const baseName = sanitizeFileName((formatSourceFile.name || 'image').replace(/\.[^./]+$/, ''));
+  a.download = (baseName || 'image') + '.' + formatTargetExt;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+});
+
+shareFormatBtn.addEventListener('click', async () => {
+  if (!formatBlobResult) return;
+  const file = new File([formatBlobResult], 'converted.' + formatTargetExt, { type: formatTargetMime });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: 'รูปที่แปลงฟอร์แมตแล้ว' }); }
+    catch (err) { console.log('ยกเลิกการแชร์'); }
+  } else {
+    showToast('เบราว์เซอร์ของคุณไม่รองรับการแชร์ ลองดาวน์โหลดแทนนะ');
+  }
+});
+
+document.getElementById('reconvertFormatLink').addEventListener('click', resetFormatApp);
+
+function resetFormatApp() {
+  formatResultSection.style.display = 'none';
+  formatUploadSection.style.display = 'block';
+  formatFile.value = '';
+  formatSourceFile = null;
+  formatBlobResult = null;
+  if (formatBlobUrl) { URL.revokeObjectURL(formatBlobUrl); formatBlobUrl = ''; }
+}
+
+/* =========================================================
+   MERGE PDFs
+   Uses pdf-lib (loaded from cdnjs) to copy pages from every
+   selected PDF, in order, into one new document.
+========================================================= */
+const mergeFiles = document.getElementById('mergeFiles');
+const mergeUploadLabel = document.getElementById('mergeUploadLabel');
+const mergeList = document.getElementById('mergeList');
+const mergeCountEl = document.getElementById('mergeCount');
+const mergeUploadSection = document.getElementById('mergeUploadSection');
+const mergeLoadingSection = document.getElementById('mergeLoadingSection');
+const mergeResultSection = document.getElementById('mergeResultSection');
+const mergeBtn = document.getElementById('mergeBtn');
+const downloadMergeBtn = document.getElementById('downloadMergeBtn');
+const previewMergeBtn = document.getElementById('previewMergeBtn');
+const shareMergeBtn = document.getElementById('shareMergeBtn');
+const mergePageSummary = document.getElementById('mergePageSummary');
+const mergeProgressFill = document.getElementById('mergeProgressFill');
+const mergeProgressText = document.getElementById('mergeProgressText');
+const mergeLoadingLabel = document.getElementById('mergeLoadingLabel');
+
+const MAX_MERGE_FILES = 20;
+const MAX_MERGE_FILE_SIZE = 100 * 1024 * 1024; // 100MB per PDF
+
+let selectedPdfs = []; // [File]
+let mergeBlobResult = null;
+let mergeBlobUrl = '';
+
+function handleMergeFiles(fileList) {
+  const files = Array.from(fileList || []);
+  for (const file of files) {
+    const looksLikePdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+    if (!looksLikePdf) {
+      showToast(`ข้าม "${file.name}" เพราะไม่ใช่ไฟล์ PDF`, 'error');
+      continue;
+    }
+    if (file.size > MAX_MERGE_FILE_SIZE) {
+      showToast(`ข้าม "${file.name}" เพราะไฟล์ใหญ่เกิน 100MB`, 'error');
+      continue;
+    }
+    if (selectedPdfs.length >= MAX_MERGE_FILES) {
+      showToast(`เลือกได้สูงสุด ${MAX_MERGE_FILES} ไฟล์ต่อการรวมหนึ่งครั้ง`, 'error');
+      break;
+    }
+    selectedPdfs.push(file);
+  }
+  renderMergeList();
+}
+
+mergeFiles.addEventListener('change', (e) => {
+  handleMergeFiles(e.target.files);
+  mergeFiles.value = '';
+});
+wireDropZone(mergeUploadLabel, (files) => handleMergeFiles(files));
+
+function renderMergeList() {
+  // Built with createElement/textContent only — filenames are attacker/user
+  // controlled and must never be inserted as HTML.
+  mergeList.innerHTML = '';
+  selectedPdfs.forEach((file, index) => {
+    const li = document.createElement('li');
+    li.className = 'merge-item';
+
+    const icon = document.createElement('span');
+    icon.className = 'merge-item-icon';
+    icon.textContent = '📄';
+
+    const name = document.createElement('span');
+    name.className = 'merge-item-name';
+    name.textContent = file.name;
+
+    const size = document.createElement('span');
+    size.className = 'merge-item-size';
+    size.textContent = formatBytes(file.size);
+
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'merge-remove';
+    removeBtn.setAttribute('aria-label', 'ลบไฟล์นี้');
+    removeBtn.textContent = '×';
+    removeBtn.addEventListener('click', () => {
+      selectedPdfs.splice(index, 1);
+      renderMergeList();
+    });
+
+    li.appendChild(icon);
+    li.appendChild(name);
+    li.appendChild(size);
+    li.appendChild(removeBtn);
+    mergeList.appendChild(li);
+  });
+  mergeCountEl.textContent = String(selectedPdfs.length);
+}
+
+mergeBtn.addEventListener('click', async () => {
+  if (selectedPdfs.length < 2) {
+    showToast("เลือกไฟล์ PDF อย่างน้อย 2 ไฟล์เพื่อรวมนะเพื่อน", 'error');
+    return;
+  }
+  if (typeof window.PDFLib === 'undefined') {
+    showToast("โหลดตัวรวม PDF ไม่สำเร็จ ตรวจสอบการเชื่อมต่อเน็ตแล้วลองใหม่นะ", 'error');
+    return;
+  }
+
+  mergeUploadSection.style.display = 'none';
+  mergeLoadingSection.style.display = 'block';
+  setProgress(mergeProgressFill, mergeProgressText, mergeLoadingLabel, 0, 'กำลังรวมไฟล์...');
+
+  try {
+    const { PDFDocument } = window.PDFLib;
+    const merged = await PDFDocument.create();
+    let totalPages = 0;
+
+    for (let i = 0; i < selectedPdfs.length; i++) {
+      const bytes = await selectedPdfs[i].arrayBuffer();
+      const src = await PDFDocument.load(bytes, { ignoreEncryption: true });
+      const pages = await merged.copyPages(src, src.getPageIndices());
+      pages.forEach((p) => merged.addPage(p));
+      totalPages += pages.length;
+
+      setProgress(
+        mergeProgressFill, mergeProgressText, mergeLoadingLabel,
+        Math.round(((i + 1) / selectedPdfs.length) * 100),
+        `กำลังรวมไฟล์ ${i + 1}/${selectedPdfs.length}`
+      );
+    }
+
+    const mergedBytes = await merged.save();
+    mergeBlobResult = new Blob([mergedBytes], { type: 'application/pdf' });
+    mergeBlobUrl = URL.createObjectURL(mergeBlobResult);
+
+    addHistoryEntry('merge', `รวม ${selectedPdfs.length} ไฟล์ (${totalPages} หน้า)`);
+    fireConfetti();
+
+    mergeLoadingSection.style.display = 'none';
+    mergeResultSection.style.display = 'block';
+    mergePageSummary.textContent = `รวม ${totalPages} หน้า จาก ${selectedPdfs.length} ไฟล์`;
+
+  } catch (err) {
+    console.error(err);
+    mergeLoadingSection.style.display = 'none';
+    mergeUploadSection.style.display = 'block';
+    showToast("เกิดข้อผิดพลาดตอนรวมไฟล์ — ไฟล์อาจเสียหายหรือมีรหัสผ่านป้องกันอยู่", 'error');
+  }
+});
+
+downloadMergeBtn.addEventListener('click', () => {
+  if (!mergeBlobResult) return;
+  const a = document.createElement('a');
+  a.href = mergeBlobUrl;
+  a.download = 'merged.pdf';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+});
+
+previewMergeBtn.addEventListener('click', () => {
+  if (!mergeBlobUrl) return;
+  window.open(mergeBlobUrl, '_blank', 'noopener,noreferrer');
+});
+
+shareMergeBtn.addEventListener('click', async () => {
+  if (!mergeBlobResult) return;
+  const file = new File([mergeBlobResult], 'merged.pdf', { type: 'application/pdf' });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: 'PDF ที่รวมแล้ว' }); }
+    catch (err) { console.log('ยกเลิกการแชร์'); }
+  } else {
+    showToast('เบราว์เซอร์ของคุณไม่รองรับการแชร์ ลองดาวน์โหลดแทนนะ');
+  }
+});
+
+document.getElementById('reconvertMergeLink').addEventListener('click', resetMergeApp);
+
+function resetMergeApp() {
+  mergeResultSection.style.display = 'none';
+  mergeUploadSection.style.display = 'block';
+  selectedPdfs = [];
+  renderMergeList();
+  mergeFiles.value = '';
+  mergeBlobResult = null;
+  if (mergeBlobUrl) { URL.revokeObjectURL(mergeBlobUrl); mergeBlobUrl = ''; }
+  setProgress(mergeProgressFill, mergeProgressText, mergeLoadingLabel, 0, 'กำลังรวมไฟล์...');
+}
+
+/* =========================================================
+   WATERMARK
+   Live canvas preview — updates instantly as text/position/
+   opacity change, no separate "loading" step needed since
+   drawing one image is effectively instant.
+========================================================= */
+const watermarkFile = document.getElementById('watermarkFile');
+const watermarkUploadLabel = document.getElementById('watermarkUploadLabel');
+const watermarkControls = document.getElementById('watermarkControls');
+const watermarkText = document.getElementById('watermarkText');
+const watermarkPositionRow = document.getElementById('watermarkPositionRow');
+const watermarkOpacity = document.getElementById('watermarkOpacity');
+const watermarkOpacityValue = document.getElementById('watermarkOpacityValue');
+const watermarkCanvas = document.getElementById('watermarkCanvas');
+const watermarkBtn = document.getElementById('watermarkBtn');
+
+let watermarkSourceImg = null;
+let watermarkSourceFile = null;
+let watermarkPosition = 'bottom-right';
+
+function handleWatermarkFile(file) {
+  if (!file) return;
+  if (!file.type.startsWith('image/')) {
+    showToast("ไฟล์นี้ไม่ใช่รูปภาพนะเพื่อน ลองเลือกไฟล์ใหม่", 'error');
+    return;
+  }
+  if (file.size > MAX_SIMPLE_IMAGE_SIZE) {
+    showToast("ไฟล์ใหญ่เกินไป (จำกัดไม่เกิน 30MB)", 'error');
+    return;
+  }
+  watermarkSourceFile = file;
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    watermarkSourceImg = img;
+    watermarkCanvas.width = img.naturalWidth;
+    watermarkCanvas.height = img.naturalHeight;
+    watermarkControls.style.display = 'block';
+    drawWatermarkPreview();
+    URL.revokeObjectURL(url);
+  };
+  img.onerror = () => {
+    URL.revokeObjectURL(url);
+    showToast('โหลดรูปไม่สำเร็จ ลองไฟล์อื่นดูนะ', 'error');
+  };
+  img.src = url;
+}
+
+watermarkFile.addEventListener('change', (e) => handleWatermarkFile(e.target.files[0]));
+wireDropZone(watermarkUploadLabel, (files) => handleWatermarkFile(files && files[0]));
+
+function drawWatermarkPreview() {
+  if (!watermarkSourceImg) return;
+  const ctx = watermarkCanvas.getContext('2d');
+  const w = watermarkCanvas.width;
+  const h = watermarkCanvas.height;
+  ctx.clearRect(0, 0, w, h);
+  ctx.drawImage(watermarkSourceImg, 0, 0, w, h);
+
+  const text = watermarkText.value || '';
+  if (text === '') return;
+
+  const opacityFraction = Number(watermarkOpacity.value) / 100;
+  const fontSize = Math.max(16, Math.round(w * 0.045));
+  ctx.font = `bold ${fontSize}px Arial, sans-serif`;
+  ctx.fillStyle = `rgba(255,255,255,${opacityFraction})`;
+  ctx.strokeStyle = `rgba(0,0,0,${opacityFraction * 0.6})`;
+  ctx.lineWidth = Math.max(1, fontSize * 0.06);
+  ctx.textBaseline = 'alphabetic';
+
+  const padding = Math.round(w * 0.03);
+  let x, y;
+  if (watermarkPosition === 'top-left') { x = padding; y = padding + fontSize; ctx.textAlign = 'left'; }
+  else if (watermarkPosition === 'top-right') { x = w - padding; y = padding + fontSize; ctx.textAlign = 'right'; }
+  else if (watermarkPosition === 'center') { x = w / 2; y = h / 2; ctx.textAlign = 'center'; }
+  else if (watermarkPosition === 'bottom-left') { x = padding; y = h - padding; ctx.textAlign = 'left'; }
+  else { x = w - padding; y = h - padding; ctx.textAlign = 'right'; } // bottom-right (default)
+
+  ctx.strokeText(text, x, y);
+  ctx.fillText(text, x, y);
+}
+
+watermarkText.addEventListener('input', drawWatermarkPreview);
+watermarkOpacity.addEventListener('input', () => {
+  watermarkOpacityValue.textContent = watermarkOpacity.value + '%';
+  drawWatermarkPreview();
+});
+watermarkPositionRow.querySelectorAll('.format-choice').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    watermarkPositionRow.querySelectorAll('.format-choice').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    watermarkPosition = btn.dataset.pos;
+    drawWatermarkPreview();
+  });
+});
+
+watermarkBtn.addEventListener('click', () => {
+  if (!watermarkSourceImg) {
+    showToast("เพื่อน! อย่าลืมเลือกรูปก่อนนะ", 'error');
+    return;
+  }
+  watermarkCanvas.toBlob((blob) => {
+    if (!blob) {
+      showToast('สร้างไฟล์ไม่สำเร็จ ลองใหม่อีกครั้งนะ', 'error');
+      return;
+    }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const baseName = sanitizeFileName((watermarkSourceFile.name || 'image').replace(/\.[^./]+$/, ''));
+    a.download = (baseName || 'image') + '-watermark.png';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    addHistoryEntry('watermark', watermarkSourceFile.name);
+    fireConfetti();
+  }, 'image/png');
+});
+
+function resetWatermarkApp() {
+  watermarkFile.value = '';
+  watermarkSourceImg = null;
+  watermarkSourceFile = null;
+  watermarkControls.style.display = 'none';
+  watermarkText.value = '© KKO.com';
+  watermarkOpacity.value = 60;
+  watermarkOpacityValue.textContent = '60%';
+  watermarkPosition = 'bottom-right';
+  watermarkPositionRow.querySelectorAll('.format-choice').forEach(b => b.classList.remove('active'));
+  const defaultBtn = watermarkPositionRow.querySelector('[data-pos="bottom-right"]');
+  if (defaultBtn) defaultBtn.classList.add('active');
+  const ctx = watermarkCanvas.getContext('2d');
+  ctx.clearRect(0, 0, watermarkCanvas.width, watermarkCanvas.height);
+  watermarkCanvas.width = 0;
+  watermarkCanvas.height = 0;
 }

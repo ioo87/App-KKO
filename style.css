@@ -300,6 +300,7 @@ h1 {
 }
 
 .track-card {
+  position: relative;
   background: var(--surface);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-md);
@@ -376,16 +377,21 @@ h1 {
   border-radius: 999px;
   padding: 5px;
   margin-bottom: 16px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
 }
+.tab-bar::-webkit-scrollbar { display: none; }
 .tab-btn {
-  flex: 1;
+  flex: 0 0 auto;
+  white-space: nowrap;
   background: transparent;
   border: none;
   color: var(--text-muted);
   font-family: var(--font-display);
   font-size: 0.82rem;
   font-weight: 600;
-  padding: 0.65rem 0.5rem;
+  padding: 0.65rem 0.85rem;
   border-radius: 999px;
   cursor: pointer;
   transition: background 0.2s ease, color 0.2s ease;
@@ -478,11 +484,11 @@ input[type="text"]:focus { outline: none; border-color: var(--accent); box-shado
 .btn:active { transform: scale(0.97); }
 .btn-outline { background-color: transparent; color: var(--accent-soft); border: 1.5px solid var(--border); box-shadow: none; }
 
-#loadingSection, #pdfLoadingSection { display: none; padding: 1.6rem 0 0.5rem; }
-#loadingSection h3, #pdfLoadingSection h3 { font-family: var(--font-display); font-size: 1.05rem; color: var(--text); margin: 4px 0 6px; }
-#loadingSection p, #pdfLoadingSection p { font-size: 0.85rem; color: var(--text-muted); margin: 0; }
+#loadingSection, #pdfLoadingSection, #mergeLoadingSection { display: none; padding: 1.6rem 0 0.5rem; }
+#loadingSection h3, #pdfLoadingSection h3, #mergeLoadingSection h3 { font-family: var(--font-display); font-size: 1.05rem; color: var(--text); margin: 4px 0 6px; }
+#loadingSection p, #pdfLoadingSection p, #mergeLoadingSection p { font-size: 0.85rem; color: var(--text-muted); margin: 0; }
 
-#resultSection, #pdfResultSection { display: none; }
+#resultSection, #pdfResultSection, #compressResultSection, #formatResultSection, #mergeResultSection { display: none; }
 .result-title { font-family: var(--font-display); margin-bottom: 1.4rem; }
 .preview-label { font-size: 0.88rem; text-align: left; color: var(--text-muted); margin-bottom: 6px; }
 audio { width: 100%; margin-bottom: 1.4rem; border-radius: 30px; }
@@ -529,6 +535,23 @@ audio { width: 100%; margin-bottom: 1.4rem; border-radius: 30px; }
   justify-content: center;
 }
 .thumb-remove:active { transform: scale(0.9); }
+
+.thumb-rotate {
+  position: absolute;
+  bottom: 3px; left: 3px;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0,0,0,0.7);
+  color: #fff;
+  font-size: 0.8rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.thumb-rotate:active { transform: scale(0.9) rotate(45deg); }
 
 /* ---------- IMG → PDF: loading animation (stacking pages) ---------- */
 .page-stack {
@@ -700,6 +723,235 @@ audio { width: 100%; margin-bottom: 1.4rem; border-radius: 30px; }
   border-radius: 4px;
   padding: 1px 6px;
   font-size: 0.85em;
+}
+
+/* ---------- QR Code ---------- */
+#qrResultWrap { display: none; margin-top: 18px; text-align: center; }
+.qr-frame {
+  background: #ffffff;   /* always white, regardless of theme — a QR code
+                             needs strong black/white contrast to scan reliably */
+  padding: 16px;
+  border-radius: 12px;
+  display: inline-block;
+  margin-bottom: 14px;
+}
+
+/* ---------- range sliders (compress quality / watermark opacity) ---------- */
+.range-input {
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--field-bg);
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 6px 0 14px;
+}
+.range-input::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 3px solid var(--surface-solid);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  cursor: pointer;
+}
+.range-input::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 3px solid var(--surface-solid);
+  cursor: pointer;
+}
+.size-compare {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin: 0 0 14px;
+}
+.size-compare strong { color: var(--accent-soft); }
+
+#compressControls, #watermarkControls { display: none; }
+
+.result-preview-img {
+  width: 100%;
+  border-radius: 12px;
+  margin-bottom: 14px;
+  border: 1px solid var(--border-soft);
+  display: block;
+}
+
+/* ---------- format-choice buttons (format converter + watermark position) ---------- */
+.format-choice-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 1.1rem;
+}
+.format-choice {
+  flex: 1 1 auto;
+  min-width: 64px;
+  background: var(--field-bg);
+  border: 1px solid var(--border-soft);
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.6rem 0.4rem;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: 0.15s ease;
+}
+.format-choice.active {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent-soft);
+}
+
+/* ---------- merge PDF file list ---------- */
+.merge-list { list-style: none; margin: 0 0 1.1rem; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.merge-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 0.82rem;
+}
+.merge-item-icon { font-size: 1rem; }
+.merge-item-name { flex: 1; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.merge-item-size { color: var(--text-faint); font-size: 0.74rem; white-space: nowrap; }
+.merge-remove {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0,0,0,0.15);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+/* ---------- watermark live preview ---------- */
+.watermark-preview-wrap {
+  margin: 4px 0 14px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border-soft);
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#watermarkCanvas { width: 100%; height: auto; display: block; }
+
+/* ---------- landing screen ---------- */
+.landing-card { max-width: 460px; }
+.landing-feature-list {
+  list-style: none;
+  margin: 0 0 22px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+}
+.landing-feature-list li {
+  background: var(--field-bg);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  font-size: 0.86rem;
+  color: var(--text-muted);
+}
+
+/* ---------- menu: greeting + usage stat ---------- */
+.menu-greeting { margin-bottom: 18px; }
+.greeting-text {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  color: var(--text);
+  margin: 0 0 4px;
+}
+.usage-stat { font-size: 0.82rem; color: var(--accent-soft); margin: 0; }
+
+/* ---------- menu: share app button ---------- */
+.share-app-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  background: var(--accent-dim);
+  border: 1px solid var(--border);
+  color: var(--accent-soft);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.88rem;
+  padding: 0.7rem 1rem;
+  border-radius: 999px;
+  cursor: pointer;
+  margin-bottom: 24px;
+}
+.share-app-btn:active { transform: scale(0.98); }
+
+/* ---------- menu: track categories ---------- */
+.track-category { margin-bottom: 26px; }
+.category-label {
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-faint);
+  letter-spacing: 0.04em;
+  margin: 0 0 10px;
+}
+
+/* ---------- menu: "new" badge on track cards ---------- */
+.new-badge {
+  position: absolute;
+  top: -8px;
+  right: 14px;
+  background: var(--gold);
+  color: #241a02;
+  font-family: var(--font-display);
+  font-size: 0.66rem;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 999px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+
+/* ---------- confetti (success celebration) ---------- */
+.confetti-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 80;
+  overflow: hidden;
+}
+.confetti-piece {
+  position: absolute;
+  top: -10px;
+  width: 8px;
+  height: 14px;
+  opacity: 0.9;
+  animation: confettiFall linear forwards;
+}
+@keyframes confettiFall {
+  0%   { transform: translateY(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(110vh) rotate(600deg); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .confetti-layer { display: none; }
 }
 
 /* ---------- footer (present on every screen) ---------- */

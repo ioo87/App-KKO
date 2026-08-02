@@ -25,8 +25,9 @@
      directives like frame-ancestors, X-Frame-Options, and X-Content-Type-Options
      only work as real HTTP response headers, not meta tags. See README.md for
      the equivalent headers to set at your hosting provider when you deploy.
-     Allowed external origins, and why: cdnjs.cloudflare.com (jsPDF library),
-     fonts.googleapis.com + fonts.gstatic.com (Mali/Sarabun webfonts). -->
+     Allowed external origins, and why: cdnjs.cloudflare.com (jsPDF, pdf-lib,
+     qrcodejs libraries), fonts.googleapis.com + fonts.gstatic.com (Mali/Sarabun
+     webfonts). -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' blob:; media-src 'self' blob:; connect-src 'self' https://cdnjs.cloudflare.com; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none';">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 
@@ -44,6 +45,9 @@
   <!-- Toast notifications render here (replaces browser alert()) -->
   <div class="toast-stack" id="toastStack" aria-live="polite"></div>
 
+  <!-- Confetti pieces are injected here on success -->
+  <div class="confetti-layer" id="confettiLayer" aria-hidden="true"></div>
+
   <!-- Custom confirm dialog (replaces browser confirm()) -->
   <div class="modal-backdrop" id="confirmBackdrop">
     <div class="modal-box" role="alertdialog" aria-modal="true">
@@ -57,8 +61,31 @@
 
   <main>
 
+    <!-- ===================== LANDING ===================== -->
+    <section id="screen-landing" class="screen active">
+      <div class="card landing-card">
+        <div class="waveform idle" aria-hidden="true">
+          <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+        </div>
+        <p class="eyebrow">KKO.com</p>
+        <h1>เครื่องมือแปลงไฟล์ฟรี</h1>
+        <p class="subtitle">แปลงไฟล์ สร้าง PDF สร้าง QR Code และอีกมากมาย ทั้งหมดทำงานในเบราว์เซอร์ของคุณเอง ไม่มีการอัปโหลดไฟล์ขึ้นเซิร์ฟเวอร์ที่ไหนเลย</p>
+
+        <ul class="landing-feature-list">
+          <li>🎵 แปลง MP4 เป็น MP3</li>
+          <li>📄 รวมรูปภาพเป็น PDF จัดหน้า A4 อัตโนมัติ</li>
+          <li>🔳 สร้าง QR Code ในคลิกเดียว</li>
+          <li>🖼️ บีบอัด แปลงฟอร์แมต ใส่ลายน้ำลงรูป</li>
+          <li>📎 รวมไฟล์ PDF หลายไฟล์เป็นไฟล์เดียว</li>
+        </ul>
+
+        <button class="btn" id="landingStartBtn" type="button">เริ่มใช้งานฟรี</button>
+        <p class="security-note">ไม่ต้องติดตั้งโปรแกรม ใช้งานได้ทันทีบนมือถือและคอมพิวเตอร์</p>
+      </div>
+    </section>
+
     <!-- ===================== LOGIN ===================== -->
-    <section id="screen-login" class="screen active">
+    <section id="screen-login" class="screen">
       <div class="card">
         <div class="waveform idle" aria-hidden="true">
           <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
@@ -100,29 +127,99 @@
           </div>
         </div>
 
+        <div class="menu-greeting">
+          <p class="greeting-text" id="greetingText">สวัสดี 👋</p>
+          <p class="usage-stat" id="usageStat">เริ่มใช้งานเครื่องมือแรกได้เลย</p>
+        </div>
+
         <div class="menu-header">
           <h1>คลังเครื่องมือ</h1>
           <p class="subtitle subtitle-tight">เลือกแทร็กที่ต้องการเริ่มใช้งาน</p>
         </div>
 
-        <div class="track-grid">
-          <article class="track-card" data-status="ready" id="trackMp3" tabindex="0" role="button">
-            <span class="track-index">แทร็ก 01</span>
-            <div class="track-info">
-              <h3>แปลง MP4 → MP3</h3>
-              <p>สกัดเสียงจากวิดีโอ ใส่ชื่อเพลงและปกอัลบั้มได้ในคลิกเดียว</p>
-            </div>
-            <span class="track-status status-ready">พร้อมใช้งาน</span>
-          </article>
+        <button class="share-app-btn" id="shareAppBtn" type="button">📤 แชร์แอปนี้ให้เพื่อน</button>
 
-          <article class="track-card" data-status="ready" id="trackPdf" tabindex="0" role="button">
-            <span class="track-index">แทร็ก 02</span>
-            <div class="track-info">
-              <h3>แปลง รูปภาพ → PDF</h3>
-              <p>เลือกรูปถ่ายเอกสารได้หลายใบ จัดหน้า A4 ให้อัตโนมัติ</p>
-            </div>
-            <span class="track-status status-ready">พร้อมใช้งาน</span>
-          </article>
+        <div class="track-category">
+          <p class="category-label">🎵 เสียง</p>
+          <div class="track-grid">
+            <article class="track-card" data-status="ready" id="trackMp3" tabindex="0" role="button">
+              <span class="track-index">แทร็ก 01</span>
+              <div class="track-info">
+                <h3>แปลง MP4 → MP3</h3>
+                <p>สกัดเสียงจากวิดีโอ ใส่ชื่อเพลงและปกอัลบั้มได้ในคลิกเดียว</p>
+              </div>
+              <span class="track-status status-ready">พร้อมใช้งาน</span>
+            </article>
+          </div>
+        </div>
+
+        <div class="track-category">
+          <p class="category-label">📄 เอกสาร</p>
+          <div class="track-grid">
+            <article class="track-card" data-status="ready" id="trackPdf" tabindex="0" role="button">
+              <span class="track-index">แทร็ก 02</span>
+              <div class="track-info">
+                <h3>แปลง รูปภาพ → PDF</h3>
+                <p>เลือกรูปถ่ายเอกสารได้หลายใบ จัดหน้า A4 ให้อัตโนมัติ</p>
+              </div>
+              <span class="track-status status-ready">พร้อมใช้งาน</span>
+            </article>
+
+            <article class="track-card" data-status="ready" id="trackMerge" tabindex="0" role="button">
+              <span class="new-badge">ใหม่!</span>
+              <span class="track-index">แทร็ก 06</span>
+              <div class="track-info">
+                <h3>รวมไฟล์ PDF</h3>
+                <p>เลือกหลายไฟล์ PDF รวมเป็นไฟล์เดียวตามลำดับที่เลือก</p>
+              </div>
+              <span class="track-status status-ready">พร้อมใช้งาน</span>
+            </article>
+          </div>
+        </div>
+
+        <div class="track-category">
+          <p class="category-label">🖼️ รูปภาพ</p>
+          <div class="track-grid">
+            <article class="track-card" data-status="ready" id="trackQr" tabindex="0" role="button">
+              <span class="new-badge">ใหม่!</span>
+              <span class="track-index">แทร็ก 03</span>
+              <div class="track-info">
+                <h3>สร้าง QR Code</h3>
+                <p>ใส่ข้อความหรือลิงก์ ออกมาเป็นรูป ดาวน์โหลดได้ทันที</p>
+              </div>
+              <span class="track-status status-ready">พร้อมใช้งาน</span>
+            </article>
+
+            <article class="track-card" data-status="ready" id="trackCompress" tabindex="0" role="button">
+              <span class="new-badge">ใหม่!</span>
+              <span class="track-index">แทร็ก 04</span>
+              <div class="track-info">
+                <h3>บีบอัดรูปภาพ</h3>
+                <p>ย่อขนาดไฟล์รูปก่อนส่ง ปรับคุณภาพได้เอง เห็นขนาดก่อน-หลัง</p>
+              </div>
+              <span class="track-status status-ready">พร้อมใช้งาน</span>
+            </article>
+
+            <article class="track-card" data-status="ready" id="trackFormat" tabindex="0" role="button">
+              <span class="new-badge">ใหม่!</span>
+              <span class="track-index">แทร็ก 05</span>
+              <div class="track-info">
+                <h3>แปลงฟอร์แมตรูป</h3>
+                <p>สลับไปมาระหว่าง PNG · JPG · WebP</p>
+              </div>
+              <span class="track-status status-ready">พร้อมใช้งาน</span>
+            </article>
+
+            <article class="track-card" data-status="ready" id="trackWatermark" tabindex="0" role="button">
+              <span class="new-badge">ใหม่!</span>
+              <span class="track-index">แทร็ก 07</span>
+              <div class="track-info">
+                <h3>ใส่ลายน้ำลงรูป</h3>
+                <p>พิมพ์ข้อความ เลือกตำแหน่งและความโปร่งใส พรีวิวสด</p>
+              </div>
+              <span class="track-status status-ready">พร้อมใช้งาน</span>
+            </article>
+          </div>
         </div>
 
         <div class="history-block">
@@ -143,8 +240,13 @@
         <div class="back-row" id="backToMenuBtn">← กลับเมนู</div>
 
         <div class="tab-bar" role="tablist">
-          <button class="tab-btn" id="tabBtnMp3" data-tab="mp3" role="tab" aria-selected="false" type="button">🎵 MP4 to MP3</button>
-          <button class="tab-btn" id="tabBtnPdf" data-tab="pdf" role="tab" aria-selected="false" type="button">🖼️ IMG to PDF</button>
+          <button class="tab-btn" id="tabBtnMp3" data-tab="mp3" role="tab" aria-selected="false" type="button">🎵 MP3</button>
+          <button class="tab-btn" id="tabBtnPdf" data-tab="pdf" role="tab" aria-selected="false" type="button">🖼️ IMG→PDF</button>
+          <button class="tab-btn" id="tabBtnQr" data-tab="qr" role="tab" aria-selected="false" type="button">🔳 QR Code</button>
+          <button class="tab-btn" id="tabBtnCompress" data-tab="compress" role="tab" aria-selected="false" type="button">🗜️ บีบอัดรูป</button>
+          <button class="tab-btn" id="tabBtnFormat" data-tab="format" role="tab" aria-selected="false" type="button">🔄 แปลงฟอร์แมต</button>
+          <button class="tab-btn" id="tabBtnMerge" data-tab="merge" role="tab" aria-selected="false" type="button">📎 รวม PDF</button>
+          <button class="tab-btn" id="tabBtnWatermark" data-tab="watermark" role="tab" aria-selected="false" type="button">🖼️ ลายน้ำ</button>
         </div>
 
         <!-- ---- Tab panel: MP4 → MP3 ---- -->
@@ -249,18 +351,191 @@
             <p class="reconvert-link" id="reconvertPdfLink">แปลงชุดใหม่</p>
           </div>
         </div>
+
+        <!-- ---- Tab panel: QR Code ---- -->
+        <div class="card tab-panel" id="panel-qr" role="tabpanel">
+          <p class="eyebrow">แทร็ก 03</p>
+          <h1 class="tool-title">สร้าง QR Code</h1>
+
+          <div class="input-group">
+            <label for="qrtext" class="input-label">ข้อความหรือลิงก์:</label>
+            <input type="text" id="qrtext" placeholder="พิมพ์ข้อความหรือ URL ที่นี่...">
+          </div>
+
+          <button class="btn" id="generateQrBtn">สร้าง QR Code</button>
+
+          <div id="qrResultWrap">
+            <div class="qr-frame" id="qrCanvasHolder"></div>
+            <button class="btn" id="downloadQrBtn">⬇️ ดาวน์โหลดรูป QR</button>
+            <button class="btn btn-outline" id="shareQrBtn">📤 แชร์ให้เพื่อน</button>
+          </div>
+        </div>
+
+        <!-- ---- Tab panel: Image compressor ---- -->
+        <div class="card tab-panel" id="panel-compress" role="tabpanel">
+          <div id="compressUploadSection">
+            <p class="eyebrow">แทร็ก 04</p>
+            <h1 class="tool-title">บีบอัดรูปภาพ</h1>
+
+            <label class="upload-area" id="compressUploadLabel">
+              <div class="upload-icon">🗜️</div>
+              <div class="upload-label-text">แตะเพื่อเลือกรูปภาพ</div>
+              <div class="upload-hint">หรือลากไฟล์มาวางตรงนี้</div>
+              <input type="file" id="compressFile" accept="image/*">
+            </label>
+
+            <div id="compressControls">
+              <label class="input-label" for="compressQuality">คุณภาพ: <span id="compressQualityValue">80%</span></label>
+              <input type="range" id="compressQuality" min="10" max="100" value="80" class="range-input">
+              <p class="size-compare" id="compressSizeCompare">ต้นฉบับ: <strong id="compressOriginalSize">-</strong></p>
+            </div>
+
+            <button class="btn" id="compressBtn">บีบอัดรูปภาพ</button>
+          </div>
+
+          <div id="compressResultSection">
+            <div class="success-icon">✅</div>
+            <h3 class="result-title">บีบอัดสำเร็จ!</h3>
+            <img class="result-preview-img" id="compressPreviewImg" alt="พรีวิวรูปที่บีบอัดแล้ว">
+            <p class="preview-label" id="compressSizeResult">ขนาดใหม่: -</p>
+            <button class="btn" id="downloadCompressBtn">⬇️ ดาวน์โหลดรูป</button>
+            <button class="btn btn-outline" id="shareCompressBtn">📤 แชร์ให้เพื่อน</button>
+            <p class="reconvert-link" id="reconvertCompressLink">บีบอัดรูปอื่นต่อ</p>
+          </div>
+        </div>
+
+        <!-- ---- Tab panel: Format converter ---- -->
+        <div class="card tab-panel" id="panel-format" role="tabpanel">
+          <div id="formatUploadSection">
+            <p class="eyebrow">แทร็ก 05</p>
+            <h1 class="tool-title">แปลงฟอร์แมตรูป</h1>
+
+            <label class="upload-area" id="formatUploadLabel">
+              <div class="upload-icon">🔄</div>
+              <div class="upload-label-text">แตะเพื่อเลือกรูปภาพ</div>
+              <div class="upload-hint">หรือลากไฟล์มาวางตรงนี้</div>
+              <input type="file" id="formatFile" accept="image/*">
+            </label>
+
+            <div class="input-group">
+              <label class="input-label">แปลงเป็น:</label>
+              <div class="format-choice-row" id="formatChoiceRow">
+                <button type="button" class="format-choice active" data-format="image/jpeg" data-ext="jpg">JPG</button>
+                <button type="button" class="format-choice" data-format="image/png" data-ext="png">PNG</button>
+                <button type="button" class="format-choice" data-format="image/webp" data-ext="webp">WebP</button>
+              </div>
+            </div>
+
+            <button class="btn" id="formatBtn">แปลงฟอร์แมต</button>
+          </div>
+
+          <div id="formatResultSection">
+            <div class="success-icon">✅</div>
+            <h3 class="result-title">แปลงฟอร์แมตสำเร็จ!</h3>
+            <img class="result-preview-img" id="formatPreviewImg" alt="พรีวิวรูปที่แปลงแล้ว">
+            <button class="btn" id="downloadFormatBtn">⬇️ ดาวน์โหลดรูป</button>
+            <button class="btn btn-outline" id="shareFormatBtn">📤 แชร์ให้เพื่อน</button>
+            <p class="reconvert-link" id="reconvertFormatLink">แปลงรูปอื่นต่อ</p>
+          </div>
+        </div>
+
+        <!-- ---- Tab panel: Merge PDFs ---- -->
+        <div class="card tab-panel" id="panel-merge" role="tabpanel">
+          <div id="mergeUploadSection">
+            <p class="eyebrow">แทร็ก 06</p>
+            <h1 class="tool-title">รวมไฟล์ PDF</h1>
+
+            <label class="upload-area" id="mergeUploadLabel">
+              <div class="upload-icon">📎</div>
+              <div class="upload-label-text">แตะเพื่อเลือกไฟล์ PDF (เลือกได้หลายไฟล์)</div>
+              <div class="upload-hint">หรือลากไฟล์มาวางตรงนี้</div>
+              <input type="file" id="mergeFiles" accept="application/pdf" multiple>
+            </label>
+
+            <div id="mergeListWrap">
+              <p class="thumbs-label">ไฟล์ที่เลือกแล้ว (<span id="mergeCount">0</span>) — จะรวมตามลำดับนี้:</p>
+              <ul class="merge-list" id="mergeList"></ul>
+            </div>
+
+            <button class="btn" id="mergeBtn">รวมเป็น PDF เดียว</button>
+          </div>
+
+          <div id="mergeLoadingSection">
+            <div class="page-stack" aria-hidden="true"><span></span><span></span><span></span></div>
+            <h3 id="mergeLoadingLabel">กำลังรวมไฟล์...</h3>
+            <div class="progress-track"><div class="progress-fill" id="mergeProgressFill"></div></div>
+            <p id="mergeProgressText">0%</p>
+          </div>
+
+          <div id="mergeResultSection">
+            <div class="success-icon">✅</div>
+            <h3 class="result-title">รวมไฟล์สำเร็จ!</h3>
+            <p class="preview-label" id="mergePageSummary">รวม 0 หน้า</p>
+            <button class="btn" id="downloadMergeBtn">⬇️ ดาวน์โหลด PDF</button>
+            <button class="btn btn-outline" id="previewMergeBtn">👀 ดูตัวอย่าง PDF</button>
+            <button class="btn btn-outline" id="shareMergeBtn">📤 แชร์ให้เพื่อน</button>
+            <p class="reconvert-link" id="reconvertMergeLink">รวมชุดใหม่</p>
+          </div>
+        </div>
+
+        <!-- ---- Tab panel: Watermark ---- -->
+        <div class="card tab-panel" id="panel-watermark" role="tabpanel">
+          <div id="watermarkUploadSection">
+            <p class="eyebrow">แทร็ก 07</p>
+            <h1 class="tool-title">ใส่ลายน้ำลงรูป</h1>
+
+            <label class="upload-area" id="watermarkUploadLabel">
+              <div class="upload-icon">🖼️</div>
+              <div class="upload-label-text">แตะเพื่อเลือกรูปภาพ</div>
+              <div class="upload-hint">หรือลากไฟล์มาวางตรงนี้</div>
+              <input type="file" id="watermarkFile" accept="image/*">
+            </label>
+
+            <div id="watermarkControls">
+              <div class="input-group">
+                <label for="watermarkText" class="input-label">ข้อความลายน้ำ:</label>
+                <input type="text" id="watermarkText" placeholder="เช่น © ชื่อร้านคุณ" value="© KKO.com">
+              </div>
+
+              <div class="input-group">
+                <label class="input-label">ตำแหน่ง:</label>
+                <div class="format-choice-row" id="watermarkPositionRow">
+                  <button type="button" class="format-choice" data-pos="top-left">บนซ้าย</button>
+                  <button type="button" class="format-choice" data-pos="top-right">บนขวา</button>
+                  <button type="button" class="format-choice" data-pos="center">กลาง</button>
+                  <button type="button" class="format-choice" data-pos="bottom-left">ล่างซ้าย</button>
+                  <button type="button" class="format-choice active" data-pos="bottom-right">ล่างขวา</button>
+                </div>
+              </div>
+
+              <div class="input-group">
+                <label class="input-label" for="watermarkOpacity">ความโปร่งใส: <span id="watermarkOpacityValue">60%</span></label>
+                <input type="range" id="watermarkOpacity" min="10" max="100" value="60" class="range-input">
+              </div>
+
+              <div class="watermark-preview-wrap">
+                <canvas id="watermarkCanvas"></canvas>
+              </div>
+            </div>
+
+            <button class="btn" id="watermarkBtn">ใส่ลายน้ำแล้วดาวน์โหลด</button>
+          </div>
+        </div>
       </div>
     </section>
 
   </main>
 
   <footer class="site-footer">
-    <p>ติดต่อ: <a href="tel:02054336649">020 54336649</a> · <a href="about.html">เกี่ยวกับเรา</a> · <a href="privacy.html">ความเป็นส่วนตัว</a></p>
+    <p>ติดต่อ: <a href="tel:02054336649">020 54336649</a> · <a href="mailto:koko881681@gmail.com">koko881681@gmail.com</a></p>
+    <p><a href="about.html">เกี่ยวกับเรา</a> · <a href="privacy.html">ความเป็นส่วนตัว</a></p>
     <p>สงวนลิขสิทธิ์สำหรับ SOUKPHANSA SORMIXAY</p>
   </footer>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
 <script src="script.js" defer></script>
 </body>
 </html>

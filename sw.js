@@ -1,7 +1,7 @@
 /* Service worker for KKO.com — makes the app installable and usable offline.
    Bump CACHE_NAME whenever a deployed file changes, so returning visitors get
    the new version instead of a stale cached copy. */
-const CACHE_NAME = 'kko-app-v1';
+const CACHE_NAME = 'kko-app-v3';
 
 const CORE_ASSETS = [
   './',
@@ -12,9 +12,11 @@ const CORE_ASSETS = [
   './icon-192.png',
   './icon-512.png',
   './favicon.svg',
-  // Cross-origin, but cdnjs serves proper CORS headers, so this caches cleanly
-  // and lets the IMG→PDF tool work offline after the first successful visit.
-  'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
+  // Cross-origin, but cdnjs serves proper CORS headers, so these cache cleanly
+  // and let the file-based tools work offline after the first successful visit.
+  'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js'
 ];
 
 self.addEventListener('install', (event) => {
