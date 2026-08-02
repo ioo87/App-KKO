@@ -217,7 +217,7 @@ function renderHistory() {
 
     const icon = document.createElement('span');
     icon.className = 'history-icon';
-    const iconMap = { pdf: '📄', qr: '🔳', compress: '🗜️', format: '🔄', merge: '📎', watermark: '🖼️' };
+    const iconMap = { pdf: '📄', qr: '🔳', compress: '🗜️', format: '🔄', merge: '📎', watermark: '🖼️', translate: '🌐' };
     icon.textContent = iconMap[entry.type] || '🎵';
 
     const name = document.createElement('span');
@@ -324,6 +324,7 @@ trackPdf.addEventListener('keydown', (e) => {
   ['trackFormat', 'format'],
   ['trackMerge', 'merge'],
   ['trackWatermark', 'watermark'],
+  ['trackTranslate', 'translate'],
 ].forEach(([id, tab]) => {
   const el = document.getElementById(id);
   el.addEventListener('click', () => openWorkspace(tab));
@@ -340,6 +341,7 @@ document.getElementById('backToMenuBtn').addEventListener('click', () => {
   resetFormatApp();
   resetMergeApp();
   resetWatermarkApp();
+  resetTranslateApp();
   showScreen('screen-menu');
 });
 
@@ -1564,4 +1566,111 @@ function resetWatermarkApp() {
   ctx.clearRect(0, 0, watermarkCanvas.width, watermarkCanvas.height);
   watermarkCanvas.width = 0;
   watermarkCanvas.height = 0;
+}
+
+/* =========================================================
+   TRANSLATE
+   Uses MyMemory (free, no API key, CORS-enabled) — safe to
+   call directly from the browser since there is no secret to
+   protect. See README.md for details on the free-tier limits.
+========================================================= */
+const translateFromLang = document.getElementById('translateFromLang');
+const translateToLang = document.getElementById('translateToLang');
+const langSwapBtn = document.getElementById('langSwapBtn');
+const translateInput = document.getElementById('translateInput');
+const translateCharCount = document.getElementById('translateCharCount');
+const translateBtn = document.getElementById('translateBtn');
+const translateResultWrap = document.getElementById('translateResultWrap');
+const translateResultBox = document.getElementById('translateResultBox');
+const copyTranslateBtn = document.getElementById('copyTranslateBtn');
+
+const TRANSLATE_MAX_CHARS = 480; // MyMemory's free endpoint caps ~500 bytes per
+                                  // request; Thai/multi-byte text uses more bytes
+                                  // per character, so this stays a bit under that
+
+translateInput.addEventListener('input', () => {
+  translateCharCount.textContent = String(translateInput.value.length);
+});
+
+langSwapBtn.addEventListener('click', () => {
+  const fromVal = translateFromLang.value;
+  translateFromLang.value = translateToLang.value;
+  translateToLang.value = fromVal;
+});
+
+translateBtn.addEventListener('click', async () => {
+  const text = translateInput.value.trim();
+  if (text === '') {
+    showToast("เพื่อน! พิมพ์ข้อความที่จะแปลก่อนนะ", 'error');
+    return;
+  }
+  if (text.length > TRANSLATE_MAX_CHARS) {
+    showToast(`ข้อความยาวเกินไป (จำกัดไม่เกิน ${TRANSLATE_MAX_CHARS} ตัวอักษรต่อครั้ง)`, 'error');
+    return;
+  }
+  const from = translateFromLang.value;
+  const to = translateToLang.value;
+  if (from === to) {
+    showToast("เลือกภาษาต้นทางกับปลายทางให้ต่างกันนะเพื่อน", 'error');
+    return;
+  }
+
+  translateBtn.disabled = true;
+  translateBtn.textContent = 'กำลังแปล...';
+
+  try {
+    const params = new URLSearchParams({ q: text, langpair: `${from}|${to}` });
+    const response = await fetch(`https://api.mymemory.translated.net/get?${params.toString()}`);
+    if (!response.ok) {
+      throw new Error('HTTP ' + response.status);
+    }
+    const data = await response.json();
+    if (data.responseStatus && Number(data.responseStatus) !== 200) {
+      throw new Error(data.responseDetails || 'translation failed');
+    }
+    const translated = data.responseData && data.responseData.translatedText;
+    if (!translated) {
+      throw new Error('empty response');
+    }
+
+    // textContent — the translated text comes from an external API and must
+    // never be inserted as HTML.
+    translateResultBox.textContent = translated;
+    translateResultWrap.style.display = 'block';
+    addHistoryEntry('translate', text.length > 30 ? text.slice(0, 30) + '…' : text);
+    fireConfetti();
+
+  } catch (err) {
+    console.error(err);
+    if (err instanceof TypeError) {
+      // fetch() throws a plain TypeError specifically when the request never
+      // even reached a server — blocked by network policy, no connection, or
+      // (commonly, if testing inside a sandboxed preview) the environment
+      // only allows requests to a pre-approved list of domains.
+      showToast("เชื่อมต่อบริการแปลภาษาไม่ได้ ถ้ากำลังทดสอบในหน้าพรีวิว บางระบบพรีวิวจะบล็อกการเชื่อมต่อไปยังเว็บภายนอกที่ไม่ได้อนุญาตไว้ — ลองเปิดเว็บที่ deploy จริงแล้วทดสอบอีกครั้งนะ", 'error');
+    } else {
+      showToast("แปลไม่สำเร็จ อาจเกินโควตาฟรีวันนี้ ลองใหม่อีกครั้งนะ", 'error');
+    }
+  } finally {
+    translateBtn.disabled = false;
+    translateBtn.textContent = 'แปลข้อความ';
+  }
+});
+
+copyTranslateBtn.addEventListener('click', async () => {
+  const text = translateResultBox.textContent;
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast('คัดลอกข้อความแล้ว');
+  } catch (err) {
+    showToast('คัดลอกไม่สำเร็จ ลองเลือกข้อความแล้วคัดลอกเองนะ', 'error');
+  }
+});
+
+function resetTranslateApp() {
+  translateInput.value = '';
+  translateCharCount.textContent = '0';
+  translateResultWrap.style.display = 'none';
+  translateResultBox.textContent = '';
 }

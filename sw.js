@@ -1,7 +1,7 @@
 /* Service worker for KKO.com — makes the app installable and usable offline.
    Bump CACHE_NAME whenever a deployed file changes, so returning visitors get
    the new version instead of a stale cached copy. */
-const CACHE_NAME = 'kko-app-v3';
+const CACHE_NAME = 'kko-app-v4';
 
 const CORE_ASSETS = [
   './',

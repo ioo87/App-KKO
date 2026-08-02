@@ -27,8 +27,9 @@
      the equivalent headers to set at your hosting provider when you deploy.
      Allowed external origins, and why: cdnjs.cloudflare.com (jsPDF, pdf-lib,
      qrcodejs libraries), fonts.googleapis.com + fonts.gstatic.com (Mali/Sarabun
-     webfonts). -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' blob:; media-src 'self' blob:; connect-src 'self' https://cdnjs.cloudflare.com; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none';">
+     webfonts), api.mymemory.translated.net (free translation API — no key
+     required, so there is nothing secret in this code to protect). -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' blob:; media-src 'self' blob:; connect-src 'self' https://cdnjs.cloudflare.com https://api.mymemory.translated.net; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none';">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 
 <script src="theme.js"></script>
@@ -222,6 +223,21 @@
           </div>
         </div>
 
+        <div class="track-category">
+          <p class="category-label">🌐 ภาษา</p>
+          <div class="track-grid">
+            <article class="track-card" data-status="ready" id="trackTranslate" tabindex="0" role="button">
+              <span class="new-badge">ใหม่!</span>
+              <span class="track-index">แทร็ก 08</span>
+              <div class="track-info">
+                <h3>แปลภาษา</h3>
+                <p>พิมพ์ข้อความ เลือกภาษาต้นทาง-ปลายทาง แปลได้ทันที</p>
+              </div>
+              <span class="track-status status-ready">พร้อมใช้งาน</span>
+            </article>
+          </div>
+        </div>
+
         <div class="history-block">
           <div class="history-head">
             <p class="thumbs-label history-title">ประวัติล่าสุด</p>
@@ -247,6 +263,7 @@
           <button class="tab-btn" id="tabBtnFormat" data-tab="format" role="tab" aria-selected="false" type="button">🔄 แปลงฟอร์แมต</button>
           <button class="tab-btn" id="tabBtnMerge" data-tab="merge" role="tab" aria-selected="false" type="button">📎 รวม PDF</button>
           <button class="tab-btn" id="tabBtnWatermark" data-tab="watermark" role="tab" aria-selected="false" type="button">🖼️ ลายน้ำ</button>
+          <button class="tab-btn" id="tabBtnTranslate" data-tab="translate" role="tab" aria-selected="false" type="button">🌐 แปลภาษา</button>
         </div>
 
         <!-- ---- Tab panel: MP4 → MP3 ---- -->
@@ -520,6 +537,59 @@
 
             <button class="btn" id="watermarkBtn">ใส่ลายน้ำแล้วดาวน์โหลด</button>
           </div>
+        </div>
+
+        <!-- ---- Tab panel: Translate ---- -->
+        <div class="card tab-panel" id="panel-translate" role="tabpanel">
+          <p class="eyebrow">แทร็ก 08</p>
+          <h1 class="tool-title">แปลภาษา</h1>
+
+          <div class="lang-picker-row">
+            <select id="translateFromLang" class="lang-select">
+              <option value="th">ไทย</option>
+              <option value="en" selected>English</option>
+              <option value="lo">ລາວ (ลาว)</option>
+              <option value="zh-CN">中文</option>
+              <option value="ja">日本語</option>
+              <option value="ko">한국어</option>
+              <option value="fr">Français</option>
+              <option value="de">Deutsch</option>
+              <option value="es">Español</option>
+              <option value="vi">Tiếng Việt</option>
+              <option value="my">မြန်မာ</option>
+              <option value="km">ខ្មែរ</option>
+            </select>
+            <button type="button" class="lang-swap-btn" id="langSwapBtn" aria-label="สลับภาษา">⇄</button>
+            <select id="translateToLang" class="lang-select">
+              <option value="th" selected>ไทย</option>
+              <option value="en">English</option>
+              <option value="lo">ລາວ (ลาว)</option>
+              <option value="zh-CN">中文</option>
+              <option value="ja">日本語</option>
+              <option value="ko">한국어</option>
+              <option value="fr">Français</option>
+              <option value="de">Deutsch</option>
+              <option value="es">Español</option>
+              <option value="vi">Tiếng Việt</option>
+              <option value="my">မြန်မာ</option>
+              <option value="km">ខ្មែរ</option>
+            </select>
+          </div>
+
+          <div class="input-group">
+            <textarea id="translateInput" class="translate-textarea" maxlength="480" placeholder="พิมพ์ข้อความที่ต้องการแปล..."></textarea>
+            <p class="char-counter"><span id="translateCharCount">0</span> / 480 ตัวอักษร</p>
+          </div>
+
+          <button class="btn" id="translateBtn">แปลข้อความ</button>
+
+          <div id="translateResultWrap">
+            <p class="thumbs-label">ผลการแปล:</p>
+            <div class="translate-result-box" id="translateResultBox"></div>
+            <button class="btn btn-outline" id="copyTranslateBtn">📋 คัดลอกข้อความ</button>
+          </div>
+
+          <p class="security-note">ใช้ MyMemory API (ฟรี ไม่ต้องมีบัญชี) จำกัดประมาณ 5,000 ตัวอักษร/วันต่อเครื่อง</p>
         </div>
       </div>
     </section>
